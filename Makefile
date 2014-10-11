@@ -2,10 +2,10 @@ CC = gcc
 CXXFLAGS = -Wall -std=gnu99
 LIBS = -lreadline
 
-PROJECT = profiler
+PROJECT = plotcsv
 
 HEADERS = gnuplot_i/gnuplot_i.h
-OBJECTS = profiler.o gnuplot_i/gnuplot_i.o
+OBJECTS = plotcsv.o gnuplot_i/gnuplot_i.o
 
 all: $(PROJECT)
 
@@ -20,4 +20,5 @@ debug: $(PROJECT)
 
 clean:
 	rm -rf src/*.o
+	rm -rf *.o
 	rm -rf $(PROJECT)

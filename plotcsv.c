@@ -1,5 +1,5 @@
 /**
- *  profiler.c
+ *  plotcsv.c
  *  A simple program to plot data from CSV files.
  *
  *  @author Nathan Campos <nathanpc@dreamintech.net>
@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
 		char *buffer = NULL;
 		char *ctok = NULL;
 
-		buffer = readline("profiler> ");
+		buffer = readline("> ");
 		if (buffer && *buffer) {
 			add_history(buffer);
 			ctok = strtok(buffer, " ");
