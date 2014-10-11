@@ -27,7 +27,7 @@ bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp);
  */
 int main(int argc, char **argv) {
 	bool running = true;
-	char *csv_file;
+	char *csv_file = NULL;
 	gnuplot_ctrl *gp = gnuplot_init();
 
 	if (argc == 2) {
@@ -37,8 +37,19 @@ int main(int argc, char **argv) {
 	while (running) {
 		char *buffer = NULL;
 		char *ctok = NULL;
+		char prompt[64] = "> ";
 
-		buffer = readline("> ");
+		if (csv_file) {
+			ctok = strtok(csv_file, "/");
+			while (ctok != NULL) {
+				strncpy(prompt, ctok, 60);
+				ctok = strtok(NULL, "/");
+			}
+
+			strcat(prompt, "> ");
+		}
+
+		buffer = readline(prompt);
 		if (buffer && *buffer) {
 			add_history(buffer);
 			ctok = strtok(buffer, " ");
@@ -62,9 +73,17 @@ int main(int argc, char **argv) {
  * @return True if the program should continue running.
  */
 bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp) {
+	// Comment or empty line.
+	//printf("%d\n", strlen(ctok));
+	if (ctok[0] == '#') {
+		return true;
+	}
+
+	// Command.
 	if (!strcmp(ctok, "quit") || !strcmp(ctok, "exit")) {
 		return false;
 	} else if (!strcmp(ctok, "legend")) {
+		// Toogle legend.
 		if (!strcmp(strtok(NULL, " "), "off")) {
 			gnuplot_cmd(gp, "set key off");
 			printf("Legend turned off.\n");
@@ -73,6 +92,7 @@ bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp) {
 			printf("Legend turned on.\n");
 		}
 	} else if (!strcmp(ctok, "xlabel") || !strcmp(ctok, "ylabel")) {
+		// Set xy label.
 		char arg[64] = "";
 		char xy = ctok[0];
 		ctok = strtok(NULL, " ");
@@ -95,6 +115,7 @@ bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp) {
 				gnuplot_set_ylabel(gp, arg);
 		}
 	} else if (!strcmp(ctok, "plot")) {
+		// Plot data.
 		char lg_title[64] = "";
 		uint8_t col = atoi(strtok(NULL, " "));
 		double *items = NULL;
@@ -113,6 +134,7 @@ bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp) {
 		gnuplot_setstyle(gp, "lines");
 		gnuplot_plot_x(gp, items, n, lg_title);
 	} else if (!strcmp(ctok, "gp")) {
+		// Execute raw gnuplot command.
 		char gp_cmd[1024] = "";
 		ctok = strtok(NULL, " ");
 
