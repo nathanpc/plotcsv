@@ -16,8 +16,9 @@
 #include "gnuplot_i/gnuplot_i.h"
 
 void generate_prompt(char *prompt, char *csv_file);
+void parse_spaced_arg(char *arg, char *ctok);
 unsigned int read_csv_col(double **items, char *file, uint8_t col);
-bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp);
+bool parse_cmd_line(char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt);
 
 /**
  * No need to explain this.
@@ -35,7 +36,8 @@ int main(int argc, char **argv) {
 	char prompt[64] = "> ";
 
 	if (argc == 2) {
-		if (argv[1][strlen(argv[1]) - 2] == 'p' &&
+		if (argv[1][strlen(argv[1]) - 3] == '.' &&
+				argv[1][strlen(argv[1]) - 2] == 'p' &&
 				argv[1][strlen(argv[1]) - 1] == 'c') {
 			// Script file.
 			script_file = argv[1];
@@ -57,7 +59,7 @@ int main(int argc, char **argv) {
 			continue;
 		}
 
-		running = parse_cmd_line(ctok, csv_file, gp);
+		running = parse_cmd_line(ctok, &csv_file, gp, prompt);
 	}
 
 	gnuplot_close(gp);
@@ -72,7 +74,7 @@ int main(int argc, char **argv) {
  * @param gp gnuplot object.
  * @return True if the program should continue running.
  */
-bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp) {
+bool parse_cmd_line(char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt) {
 	// Comment or empty line.
 	//printf("%d\n", strlen(ctok));
 	if (ctok[0] == '#') {
@@ -95,16 +97,8 @@ bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp) {
 		// Set xy label.
 		char arg[64] = "";
 		char xy = ctok[0];
-		ctok = strtok(NULL, " ");
 
-		while (ctok != NULL) {
-			strcat(arg, ctok);
-			strcat(arg, " ");
-
-			ctok = strtok(NULL, " ");
-		}
-
-		arg[strlen(arg) - 1] = '\0';  // Remove the last space.
+		parse_spaced_arg(arg, ctok);
 		printf("%clabel set to \"%s\"\n", xy, arg);
 
 		switch (xy) {
@@ -121,32 +115,24 @@ bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp) {
 		double *items = NULL;
 		unsigned int n = 0;
 
-		ctok = strtok(NULL, " ");
-		while (ctok != NULL) {
-			strcat(lg_title, ctok);
-			strcat(lg_title, " ");
-
-			ctok = strtok(NULL, " ");
-		}
-
-		lg_title[strlen(lg_title) - 1] = '\0';  // Remove the last space.
-		n = read_csv_col(&items, csv_file, col);
+		parse_spaced_arg(lg_title, ctok);
+		n = read_csv_col(&items, *csv_file, col);
 		gnuplot_setstyle(gp, "lines");
 		gnuplot_plot_x(gp, items, n, lg_title);
 	} else if (!strcmp(ctok, "gp")) {
 		// Execute raw gnuplot command.
 		char gp_cmd[1024] = "";
-		ctok = strtok(NULL, " ");
 
-		while (ctok != NULL) {
-			strcat(gp_cmd, ctok);
-			strcat(gp_cmd, " ");
-
-			ctok = strtok(NULL, " ");
-		}
-
-		gp_cmd[strlen(gp_cmd) - 1] = '\0';  // Remove the last space.
+		parse_spaced_arg(gp_cmd, ctok);
 		gnuplot_cmd(gp, gp_cmd);
+	} else if (!strcmp(ctok, "load")) {
+		// Load CSV.
+		char filename[2048] = "";
+		parse_spaced_arg(filename, ctok);
+
+		*csv_file = malloc(strlen(filename) + 1);
+		strcpy(*csv_file, filename);
+		generate_prompt(prompt, *csv_file);
 	} else {
 		printf("Invalid command: %s\n", ctok);
 	}
@@ -219,6 +205,25 @@ unsigned int read_csv_col(double **items, char *file, uint8_t col) {
 	*items = _items;
 
 	return nitems;
+}
+
+/**
+ * Parses a spaced argument.
+ *
+ * @param arg Where the argument will be stored.
+ * @param ctok strtok string.
+ */
+void parse_spaced_arg(char *arg, char *ctok) {
+	ctok = strtok(NULL, " ");
+
+	while (ctok != NULL) {
+		strcat(arg, ctok);
+		strcat(arg, " ");
+
+		ctok = strtok(NULL, " ");
+	}
+
+	arg[strlen(arg) - 1] = '\0';  // Remove the last space.
 }
 
 /**
