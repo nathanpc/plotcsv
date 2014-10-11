@@ -112,6 +112,19 @@ bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp) {
 		n = read_csv_col(&items, csv_file, col);
 		gnuplot_setstyle(gp, "lines");
 		gnuplot_plot_x(gp, items, n, lg_title);
+	} else if (!strcmp(ctok, "gp")) {
+		char gp_cmd[1024] = "";
+		ctok = strtok(NULL, " ");
+
+		while (ctok != NULL) {
+			strcat(gp_cmd, ctok);
+			strcat(gp_cmd, " ");
+
+			ctok = strtok(NULL, " ");
+		}
+
+		gp_cmd[strlen(gp_cmd) - 1] = '\0';  // Remove the last space.
+		gnuplot_cmd(gp, gp_cmd);
 	} else {
 		printf("Invalid command: %s\n", ctok);
 	}
