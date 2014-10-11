@@ -15,6 +15,7 @@
 #include <readline/history.h>
 #include "gnuplot_i/gnuplot_i.h"
 
+void generate_prompt(char *prompt, char *csv_file);
 unsigned int read_csv_col(double **items, char *file, uint8_t col);
 bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp);
 
@@ -27,27 +28,26 @@ bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp);
  */
 int main(int argc, char **argv) {
 	bool running = true;
+	char *script_file = NULL;
 	char *csv_file = NULL;
+	char *ctok = NULL;
 	gnuplot_ctrl *gp = gnuplot_init();
+	char prompt[64] = "> ";
 
 	if (argc == 2) {
-		csv_file = argv[1];
+		if (argv[1][strlen(argv[1]) - 2] == 'p' &&
+				argv[1][strlen(argv[1]) - 1] == 'c') {
+			// Script file.
+			script_file = argv[1];
+		} else {
+			// CSV file.
+			csv_file = argv[1];
+			generate_prompt(prompt, csv_file);
+		}
 	}
 
 	while (running) {
 		char *buffer = NULL;
-		char *ctok = NULL;
-		char prompt[64] = "> ";
-
-		if (csv_file) {
-			ctok = strtok(csv_file, "/");
-			while (ctok != NULL) {
-				strncpy(prompt, ctok, 60);
-				ctok = strtok(NULL, "/");
-			}
-
-			strcat(prompt, "> ");
-		}
 
 		buffer = readline(prompt);
 		if (buffer && *buffer) {
@@ -219,5 +219,25 @@ unsigned int read_csv_col(double **items, char *file, uint8_t col) {
 	*items = _items;
 
 	return nitems;
+}
+
+/**
+ * Generate a prompt string.
+ *
+ * @param prompt Prompt string.
+ * @param csv_file CSV filename.
+ */
+void generate_prompt(char *prompt, char *csv_file) {
+	char *filename = malloc(strlen(csv_file));
+	strcpy(filename, csv_file);
+	char *ctok = strtok(filename, "/");
+
+	while (ctok != NULL) {
+		strncpy(prompt, ctok, 60);
+		ctok = strtok(NULL, "/");
+	}
+
+	strcat(prompt, "> ");
+	ctok = NULL;
 }
 
