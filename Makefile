@@ -1,11 +1,11 @@
 CC = gcc
 CXXFLAGS = -Wall -std=gnu99
-LIBS = -lm
+LIBS = 
 
 PROJECT = profiler
 
-HEADERS = src/gnuplot_i.h
-OBJECTS = src/profiler.o src/gnuplot_i.o
+HEADERS = gnuplot_i/gnuplot_i.h
+OBJECTS = profiler.o gnuplot_i/gnuplot_i.o
 
 all: $(PROJECT)
 

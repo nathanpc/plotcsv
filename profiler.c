@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <string.h>
-#include "gnuplot_i.h"
+#include "gnuplot_i/gnuplot_i.h"
 
 /**
  * Parses a CSV file and fetches a specific column from each line.
