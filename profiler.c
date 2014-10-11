@@ -16,7 +16,7 @@
 #include "gnuplot_i/gnuplot_i.h"
 
 unsigned int read_csv_col(double **items, char *file, uint8_t col);
-void plot(gnuplot_ctrl *gp, char *title, double items[], unsigned int n);
+bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp);
 
 /**
  * No need to explain this.
@@ -46,63 +46,77 @@ int main(int argc, char **argv) {
 			continue;
 		}
 
-		if (!strcmp(ctok, "quit") || !strcmp(ctok, "exit")) {
-			running = false;
-		} else if (!strcmp(ctok, "legend")) {
-			if (!strcmp(strtok(NULL, " "), "off")) {
-				gnuplot_cmd(gp, "set key off");
-				printf("Legend turned off.\n");
-			} else {
-				gnuplot_cmd(gp, "set key on");
-				printf("Legend turned on.\n");
-			}
-		} else if (!strcmp(ctok, "xlabel") || !strcmp(ctok, "ylabel")) {
-			char arg[64] = "";
-			char xy = ctok[0];
-			ctok = strtok(NULL, " ");
-
-			while (ctok != NULL) {
-				strcat(arg, ctok);
-				strcat(arg, " ");
-
-				ctok = strtok(NULL, " ");
-			}
-
-			arg[strlen(arg) - 1] = '\0';  // Remove the last space.
-			printf("%clabel set to \"%s\"\n", xy, arg);
-
-			switch (xy) {
-				case 'x':
-					gnuplot_set_xlabel(gp, arg);
-					break;
-				case 'y':
-					gnuplot_set_ylabel(gp, arg);
-			}
-		} else if (!strcmp(ctok, "plot")) {
-			char lg_title[64] = "";
-			uint8_t col = atoi(strtok(NULL, " "));
-			double *items = NULL;
-			unsigned int n = 0;
-
-			ctok = strtok(NULL, " ");
-			while (ctok != NULL) {
-				strcat(lg_title, ctok);
-				strcat(lg_title, " ");
-
-				ctok = strtok(NULL, " ");
-			}
-
-			lg_title[strlen(lg_title) - 1] = '\0';  // Remove the last space.
-			n = read_csv_col(&items, csv_file, col);
-			gnuplot_setstyle(gp, "lines");
-			gnuplot_plot_x(gp, items, n, lg_title);
-		} else {
-			printf("Invalid command: %s\n", ctok);
-		}
+		running = parse_cmd_line(ctok, csv_file, gp);
 	}
 
 	gnuplot_close(gp);
 	return EXIT_SUCCESS;
+}
+
+/**
+ * Parses a command.
+ *
+ * @param ctok Command string in strtok.
+ * @param csv_file CSV file location.
+ * @param gp gnuplot object.
+ * @return True if the program should continue running.
+ */
+bool parse_cmd_line(char *ctok, char *csv_file, gnuplot_ctrl *gp) {
+	if (!strcmp(ctok, "quit") || !strcmp(ctok, "exit")) {
+		return false;
+	} else if (!strcmp(ctok, "legend")) {
+		if (!strcmp(strtok(NULL, " "), "off")) {
+			gnuplot_cmd(gp, "set key off");
+			printf("Legend turned off.\n");
+		} else {
+			gnuplot_cmd(gp, "set key on");
+			printf("Legend turned on.\n");
+		}
+	} else if (!strcmp(ctok, "xlabel") || !strcmp(ctok, "ylabel")) {
+		char arg[64] = "";
+		char xy = ctok[0];
+		ctok = strtok(NULL, " ");
+
+		while (ctok != NULL) {
+			strcat(arg, ctok);
+			strcat(arg, " ");
+
+			ctok = strtok(NULL, " ");
+		}
+
+		arg[strlen(arg) - 1] = '\0';  // Remove the last space.
+		printf("%clabel set to \"%s\"\n", xy, arg);
+
+		switch (xy) {
+			case 'x':
+				gnuplot_set_xlabel(gp, arg);
+				break;
+			case 'y':
+				gnuplot_set_ylabel(gp, arg);
+		}
+	} else if (!strcmp(ctok, "plot")) {
+		char lg_title[64] = "";
+		uint8_t col = atoi(strtok(NULL, " "));
+		double *items = NULL;
+		unsigned int n = 0;
+
+		ctok = strtok(NULL, " ");
+		while (ctok != NULL) {
+			strcat(lg_title, ctok);
+			strcat(lg_title, " ");
+
+			ctok = strtok(NULL, " ");
+		}
+
+		lg_title[strlen(lg_title) - 1] = '\0';  // Remove the last space.
+		n = read_csv_col(&items, csv_file, col);
+		gnuplot_setstyle(gp, "lines");
+		gnuplot_plot_x(gp, items, n, lg_title);
+	} else {
+		printf("Invalid command: %s\n", ctok);
+	}
+
+	return true;
 }
 
 /**
@@ -170,16 +184,5 @@ unsigned int read_csv_col(double **items, char *file, uint8_t col) {
 	*items = _items;
 
 	return nitems;
-}
-
-/**
- * Plots the data.
- *
- * @param title Plot title.
- * @param items Array of doubles.
- * @param n Number of items in the array.
- */
-void plot(gnuplot_ctrl *gp, char *title, double items[], unsigned int n) {
-	gnuplot_plot_x(gp, items, n, title);
 }
 
