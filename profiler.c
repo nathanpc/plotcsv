@@ -8,12 +8,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 #include "gnuplot_i/gnuplot_i.h"
 
 unsigned int read_csv_col(double **items, char *file, uint8_t col);
-void setup_gnuplot(gnuplot_ctrl *gp);
 void plot(gnuplot_ctrl *gp, char *title, double items[], unsigned int n);
 
 /**
@@ -24,25 +26,82 @@ void plot(gnuplot_ctrl *gp, char *title, double items[], unsigned int n);
  * @return Return code.
  */
 int main(int argc, char **argv) {
-	if (argc < 2) {
-		printf("Usage: %s <file.csv>\n", argv[0]);
-		return EXIT_FAILURE;
+	bool running = true;
+	char *csv_file;
+	gnuplot_ctrl *gp = gnuplot_init();
+
+	if (argc == 2) {
+		csv_file = argv[1];
 	}
 
-	// Initialize gnuplot.
-	gnuplot_ctrl *gp = gnuplot_init();
-	setup_gnuplot(gp);
+	while (running) {
+		char *buffer = NULL;
+		char *ctok = NULL;
 
-	double *heatsink = NULL;
-	double *ambient = NULL;
-	unsigned int n = read_csv_col(&heatsink, argv[1], 2);
-	read_csv_col(&ambient, argv[1], 3);
+		buffer = readline("profiler> ");
+		if (buffer && *buffer) {
+			add_history(buffer);
+			ctok = strtok(buffer, " ");
+		} else {
+			continue;
+		}
 
-	plot(gp, "Heatsink", heatsink, n);
-	plot(gp, "Ambient", ambient, n);
-	sleep(5);
+		if (!strcmp(ctok, "quit") || !strcmp(ctok, "exit")) {
+			running = false;
+		} else if (!strcmp(ctok, "legend")) {
+			if (!strcmp(strtok(NULL, " "), "off")) {
+				gnuplot_cmd(gp, "set key off");
+				printf("Legend turned off.\n");
+			} else {
+				gnuplot_cmd(gp, "set key on");
+				printf("Legend turned on.\n");
+			}
+		} else if (!strcmp(ctok, "xlabel") || !strcmp(ctok, "ylabel")) {
+			char arg[64] = "";
+			char xy = ctok[0];
+			ctok = strtok(NULL, " ");
+
+			while (ctok != NULL) {
+				strcat(arg, ctok);
+				strcat(arg, " ");
+
+				ctok = strtok(NULL, " ");
+			}
+
+			arg[strlen(arg) - 1] = '\0';  // Remove the last space.
+			printf("%clabel set to \"%s\"\n", xy, arg);
+
+			switch (xy) {
+				case 'x':
+					gnuplot_set_xlabel(gp, arg);
+					break;
+				case 'y':
+					gnuplot_set_ylabel(gp, arg);
+			}
+		} else if (!strcmp(ctok, "plot")) {
+			char lg_title[64] = "";
+			uint8_t col = atoi(strtok(NULL, " "));
+			double *items = NULL;
+			unsigned int n = 0;
+
+			ctok = strtok(NULL, " ");
+			while (ctok != NULL) {
+				strcat(lg_title, ctok);
+				strcat(lg_title, " ");
+
+				ctok = strtok(NULL, " ");
+			}
+
+			lg_title[strlen(lg_title) - 1] = '\0';  // Remove the last space.
+			n = read_csv_col(&items, csv_file, col);
+			gnuplot_setstyle(gp, "lines");
+			gnuplot_plot_x(gp, items, n, lg_title);
+		} else {
+			printf("Invalid command: %s\n", ctok);
+		}
+	}
+
 	gnuplot_close(gp);
-
 	return EXIT_SUCCESS;
 }
 
@@ -111,24 +170,6 @@ unsigned int read_csv_col(double **items, char *file, uint8_t col) {
 	*items = _items;
 
 	return nitems;
-}
-
-/**
- * Setup the gnuplot stuff.
- *
- * @param gp gnuplot_ctrl object to be setup.
- */
-void setup_gnuplot(gnuplot_ctrl *gp) {
-	// Disable the legend.
-	//gnuplot_cmd(gp, "set key off");
-
-	// Setup the axis.
-	// TODO: Create a struct with axis name data.
-	gnuplot_set_xlabel(gp, "Time (s)");
-	gnuplot_set_ylabel(gp, "Temperature (C)");
-
-	// Set plot style.
-	gnuplot_setstyle(gp, "lines");
 }
 
 /**

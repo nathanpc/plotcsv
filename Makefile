@@ -1,6 +1,6 @@
 CC = gcc
 CXXFLAGS = -Wall -std=gnu99
-LIBS = 
+LIBS = -lreadline
 
 PROJECT = profiler
 
