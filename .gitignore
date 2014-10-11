@@ -3,3 +3,4 @@
 plotcsv
 *.o
 data/
+*.pc

@@ -18,7 +18,8 @@
 void generate_prompt(char *prompt, char *csv_file);
 void parse_spaced_arg(char *arg, char *ctok);
 unsigned int read_csv_col(double **items, char *file, uint8_t col);
-bool parse_cmd_line(char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt);
+bool parse_cmd_line(char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt, bool quiet);
+bool parse_script(char *script_file, char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt);
 
 /**
  * No need to explain this.
@@ -41,6 +42,7 @@ int main(int argc, char **argv) {
 				argv[1][strlen(argv[1]) - 1] == 'c') {
 			// Script file.
 			script_file = argv[1];
+			running = parse_script(script_file, ctok, &csv_file, gp, prompt);
 		} else {
 			// CSV file.
 			csv_file = argv[1];
@@ -59,7 +61,7 @@ int main(int argc, char **argv) {
 			continue;
 		}
 
-		running = parse_cmd_line(ctok, &csv_file, gp, prompt);
+		running = parse_cmd_line(ctok, &csv_file, gp, prompt, false);
 	}
 
 	gnuplot_close(gp);
@@ -74,13 +76,7 @@ int main(int argc, char **argv) {
  * @param gp gnuplot object.
  * @return True if the program should continue running.
  */
-bool parse_cmd_line(char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt) {
-	// Comment or empty line.
-	//printf("%d\n", strlen(ctok));
-	if (ctok[0] == '#') {
-		return true;
-	}
-
+bool parse_cmd_line(char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt, bool quiet) {
 	// Command.
 	if (!strcmp(ctok, "quit") || !strcmp(ctok, "exit")) {
 		return false;
@@ -88,10 +84,14 @@ bool parse_cmd_line(char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt)
 		// Toogle legend.
 		if (!strcmp(strtok(NULL, " "), "off")) {
 			gnuplot_cmd(gp, "set key off");
-			printf("Legend turned off.\n");
+			if (!quiet) {
+				printf("Legend turned off.\n");
+			}
 		} else {
 			gnuplot_cmd(gp, "set key on");
-			printf("Legend turned on.\n");
+			if (!quiet) {
+				printf("Legend turned on.\n");
+			}
 		}
 	} else if (!strcmp(ctok, "xlabel") || !strcmp(ctok, "ylabel")) {
 		// Set xy label.
@@ -99,7 +99,9 @@ bool parse_cmd_line(char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt)
 		char xy = ctok[0];
 
 		parse_spaced_arg(arg, ctok);
-		printf("%clabel set to \"%s\"\n", xy, arg);
+		if (!quiet) {
+			printf("%clabel set to \"%s\"\n", xy, arg);
+		}
 
 		switch (xy) {
 			case 'x':
@@ -138,6 +140,44 @@ bool parse_cmd_line(char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt)
 	}
 
 	return true;
+}
+
+/**
+ * Parses a script file.
+ *
+ * @param script_file Script file location.
+ * @param ctok Command string in strtok.
+ * @param csv_file CSV file location.
+ * @param gp gnuplot object.
+ * @return True if the program should continue running.
+ */
+bool parse_script(char *script_file, char *ctok, char **csv_file, gnuplot_ctrl *gp, char *prompt) {
+	FILE *script = fopen(script_file, "r");
+	char *line = NULL;
+	size_t llen = 0;
+	bool cont = true;
+
+	if (script == NULL) {
+		printf("Couldn't open script: %s\n", script_file);
+		exit(EXIT_FAILURE);
+	}
+
+	printf("Reading %s...\n", script_file);
+	while (getline(&line, &llen, script) != -1 && cont) {
+		line[strlen(line) - 1] = '\0';
+
+		// Comment or empty line.
+		if (line[0] == '#' || strlen(line) == 0) {
+			continue;
+		}
+
+		add_history(line);
+		ctok = strtok(line, " ");
+		cont = parse_cmd_line(ctok, csv_file, gp, prompt, true);
+	}
+
+	fclose(script);
+	return cont;
 }
 
 /**
